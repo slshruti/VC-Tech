@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles */
+@layer base {
+  :root {
+    --color-primary: 0 180 216;
+    --color-secondary: 238 242 255;
+    --color-accent: 255 140 0;
+    --color-background: 248 250 252;
+    --color-text: 30 41 59;
+  }
+}
+
+body {
+  @apply bg-background text-text;
+}
