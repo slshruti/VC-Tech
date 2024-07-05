@@ -30,7 +30,6 @@
    
     function handleRowClick(order: SalesOrder) {
         goto(`/salesOrder/${order.salesorder_id}`);
-        console.log(orders)
     }
 
     function changePage(newPage: number) {
