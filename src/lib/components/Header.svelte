@@ -1,6 +1,9 @@
 <script lang="ts">
  import '../styles/app.css'
- import { Search, Bell } from 'lucide-svelte';
+ import { page } from '$app/stores';
+ import { Search, Bell, LogOut } from 'lucide-svelte';
+	import { applyAction, enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 </script>
 
 <header class="bg-gray-200 shadow-sm z-10">
@@ -20,9 +23,21 @@
         <div class="ml-3 relative">
           <button type="button" class="flex items-center max-w-xs rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-300">
             <span class="sr-only">Open user menu</span>
-            <img class="h-8 w-8 rounded-full" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="">
+            <img class="h-8 w-8 rounded-full" src="https://static.vecteezy.com/system/resources/thumbnails/020/765/399/small/default-profile-account-unknown-icon-black-silhouette-free-vector.jpg" alt="">
           </button>
         </div>
+        <div class="ml-2 relative">
+    {#if $page.data.user}
+      <form action="/logout" method="POST" use:enhance={() => {
+        return async ({result}) => {
+          invalidateAll()
+          await applyAction(result)
+        }
+      }}>
+        <button type="submit" class="p-1.5 rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-300"><LogOut class="h-5 w-5" /></button>
+      </form>
+    {/if}
+    </div>
       </div>
     </div>
   </div>

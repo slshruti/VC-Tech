@@ -1,7 +1,9 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { Briefcase, CheckSquare, Calendar, BarChart2, ChevronLeft, ChevronRight } from 'lucide-svelte';
+  import { Briefcase, CheckSquare, Calendar, BarChart2, ChevronLeft, ChevronRight, LogOut, User } from 'lucide-svelte';
   import '../styles/app.css'
+	import { applyAction, enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 
   let isMinimized = false;
 
@@ -12,7 +14,7 @@
   $: currentPage = $page.url.pathname.split('/')[1] || 'Home';
 
   const menuItems = [
-    { icon: Briefcase, label: 'Projects', href: '/projects' },
+    { icon: Briefcase, label: 'Sales Orders', href: '/salesOrder' },
     { icon: CheckSquare, label: 'Tasks', href: '/tasks' },
     { icon: Calendar, label: 'Calendar', href: '/calendar' },
     { icon: BarChart2, label: 'Reports', href: '/reports' },
@@ -37,6 +39,19 @@
   </div>
   <nav class="flex-1 overflow-y-auto">
     <ul class="space-y-1 p-2">
+      {#if $page.data.user.role === 'ADMIN'}
+      <li>
+          
+           <a href="/admin"
+            class="flex items-center p-2 rounded-md hover:bg-sky-800 transition-colors duration-200 '/admin' ? 'bg-sky-900' : ''}"
+          >
+            <User size={20} />
+            {#if !isMinimized}
+              <span class="ml-3 text-sm">Admin</span>
+            {/if}
+          </a>
+        </li>
+        {/if}
       {#each menuItems as item}
         <li>
           
@@ -50,6 +65,23 @@
           </a>
         </li>
       {/each}
+      
+  {#if $page.data.user}
+      <form action="/logout" method="POST" use:enhance={() => {
+        return async ({result}) => {
+          invalidateAll()
+          await applyAction(result)
+        }
+      }}>
+        <button type="submit" class="flex items-center p-2 rounded-md hover:bg-sky-800 transition-colors duration-200">
+          <LogOut size={20} />
+            {#if !isMinimized}
+              <span class="ml-3 text-sm">LogOut</span>
+            {/if}
+        </button>
+      </form>
+    {/if}
+
     </ul>
   </nav>
   <button 
