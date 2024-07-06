@@ -1,6 +1,7 @@
 // src/routes/sales-order/[id]/+page.server.ts
 import type { PageServerLoad } from './$types';
 import type { SalesOrder } from '$lib/types';
+import { redirect } from '@sveltejs/kit';
 
 async function getToken(fetch: typeof globalThis.fetch): Promise<string> {
     const tokenResponse = await fetch('/api/zohoAuthToken');
@@ -8,7 +9,17 @@ async function getToken(fetch: typeof globalThis.fetch): Promise<string> {
     return token;
 }
 
-export const load: PageServerLoad = async ({ params, fetch }) => {
+export const load: PageServerLoad = async ({ params, fetch, locals }) => {
+
+        // redirect user if not logged in
+        if (!locals.user) {
+            throw redirect(302, new URL('/login', 'http://localhost:5173').toString());
+    }
+    
+         if (!locals.user) {
+            throw redirect(302, new URL('/login', 'https://vc-tech.vercel.app/').toString());
+        }
+
     const token = await getToken(fetch);
     const salesOrderId = params.id;
 
