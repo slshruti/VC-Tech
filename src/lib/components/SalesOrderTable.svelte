@@ -4,6 +4,9 @@
     import { goto } from '$app/navigation';
     import { fade } from 'svelte/transition';
     import { Cog, CheckCircle, AlertCircle, XCircle } from 'lucide-svelte';
+    import { jsPDF } from "jspdf";
+    import "jspdf-autotable";
+    import * as XLSX from 'xlsx';
 
     export let orders: SalesOrder[] = [];
     export let currentPage = 1;
@@ -12,13 +15,15 @@
 
     let searchTerm = '';
     let filteredOrders = orders;
-    let visibleColumns = [
+    let originalColumnOrder = [
         'date', 'salesorder_number', 'customer_name', 'reference_number', 'total',
         'status', 'invoiced_status', 'payment_status', 'shipment_date', 'order_status', 'delivery_method'
     ];
+    let visibleColumns = [...originalColumnOrder];
     let isColumnSelectorOpen = false;
     let isDownloadMenuOpen = false;
     let isLoading = false;
+    let lockedColumns = ['date', 'salesorder_number', 'customer_name', 'total', 'order_status'];
 
     $: {
         filteredOrders = orders.filter(order => 
@@ -28,7 +33,7 @@
     }
 
     const dispatch = createEventDispatcher();
-   
+
     async function handleRowClick(order: SalesOrder) {
         isLoading = true;
         await goto(`/salesOrder/${order.salesorder_id}`);
@@ -41,6 +46,13 @@
         isLoading = false;
     }
 
+    function formatDate(date: Date): string {
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+    }
+
     function formatCurrency(amount: number): string {
         return new Intl.NumberFormat('en-IN', {
             style: 'currency',
@@ -50,10 +62,23 @@
     }
 
     function toggleColumn(column: string) {
+        if (lockedColumns.includes(column)) {
+            return; // Do nothing if the column is locked
+        }
         if (visibleColumns.includes(column)) {
             visibleColumns = visibleColumns.filter(c => c !== column);
         } else {
-            visibleColumns = [...visibleColumns, column];
+            const index = originalColumnOrder.findIndex(c => c === column);
+            const insertIndex = visibleColumns.findIndex(c => originalColumnOrder.indexOf(c) > index);
+            if (insertIndex === -1) {
+                visibleColumns = [...visibleColumns, column];
+            } else {
+                visibleColumns = [
+                    ...visibleColumns.slice(0, insertIndex),
+                    column,
+                    ...visibleColumns.slice(insertIndex)
+                ];
+            }
         }
     }
 
@@ -61,11 +86,89 @@
         isDownloadMenuOpen = !isDownloadMenuOpen;
     }
 
-    function handleDownload(type: 'csv' | 'pdf') {
-        // Implement your download logic here
-        console.log(`Download ${type} clicked`);
-        isDownloadMenuOpen = false;
+    function handleDownload(type: 'csv' | 'excel' | 'pdf') {
+    if (type === 'csv') {
+        downloadCSV();
+    } else if (type === 'excel') {
+        downloadExcel();
+    } else if (type === 'pdf') {
+        downloadPDF();
     }
+    isDownloadMenuOpen = false;
+}
+
+    function downloadCSV() {
+        const headers = visibleColumns.map(column => column.replace('_', ' '));
+        const csvContent = [
+            headers.join(','),
+            ...filteredOrders.map(order => 
+                visibleColumns.map(column => {
+                    if (column === 'date' || column === 'shipment_date') {
+                        return order[column] ? formatDate(new Date(order[column])) : 'N/A';
+                    } else if (column === 'total') {
+                        return formatCurrency(order[column]);
+                    } else {
+                        return order[column];
+                    }
+                }).join(',')
+            )
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "sales_orders.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+
+    function downloadPDF() {
+        const doc = new jsPDF();
+        doc.autoTable({
+            head: [visibleColumns.map(column => column.replace('_', ' '))],
+            body: filteredOrders.map(order => 
+                visibleColumns.map(column => {
+                    if (column === 'date' || column === 'shipment_date') {
+                        return order[column] ? formatDate(new Date(order[column])) : 'N/A';
+                    } else if (column === 'total') {
+                        return formatCurrency(order[column]);
+                    } else {
+                        return order[column];
+                    }
+                })
+            ),
+        });
+
+        doc.save("sales_orders.pdf");
+    }
+
+    function downloadExcel() {
+    const wsData = [
+        visibleColumns.map(column => column.replace('_', ' ')),
+        ...filteredOrders.map(order => 
+            visibleColumns.map(column => {
+                if (column === 'date' || column === 'shipment_date') {
+                    return order[column] ? formatDate(new Date(order[column])) : 'N/A';
+                } else if (column === 'total') {
+                    return formatCurrency(order[column]);
+                } else {
+                    return order[column];
+                }
+            })
+        )
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sales Orders");
+
+    XLSX.writeFile(wb, "sales_orders.xlsx");
+}
 
     onMount(() => {
         isLoading = false;
@@ -86,23 +189,30 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-download"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
                 </button>
                 {#if isDownloadMenuOpen}
-                    <div class="absolute right-0 mt-2 w-32 bg-white rounded-md shadow-lg z-10">
-                        <div class="py-1">
-                            <button
-                                on:click={() => handleDownload('csv')}
-                                class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                            >
-                                CSV
-                            </button>
-                            <button
-                                on:click={() => handleDownload('pdf')}
-                                class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                            >
-                                PDF
-                            </button>
-                        </div>
+                <div class="absolute right-0 mt-2 w-32 bg-white rounded-md shadow-lg z-10">
+                    <div class="py-1">
+                        <button
+                            on:click={() => handleDownload('csv')}
+                            class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                            CSV
+                        </button>
+                        
+                        <button
+                            on:click={() => handleDownload('excel')}
+                            class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                            EXCEL
+                        </button>
+                        <button
+                            on:click={() => handleDownload('pdf')}
+                            class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                            PDF
+                        </button>
                     </div>
-                {/if}
+                </div>
+            {/if}
             </div>
             <button on:click={() => isColumnSelectorOpen = !isColumnSelectorOpen} class="p-2 rounded-full hover:bg-gray-200">
                 <Cog size={24} />
@@ -110,15 +220,18 @@
             {#if isColumnSelectorOpen}
                 <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
                     <div class="py-1">
-                        {#each ['date', 'salesorder_number', 'customer_name', 'reference_number', 'total', 'status', 'invoiced_status', 'payment_status', 'shipment_date', 'order_status', 'delivery_method'] as column}
+                        {#each originalColumnOrder as column}
                             <label class="flex items-center px-4 py-2 hover:bg-gray-100">
                                 <input
                                     type="checkbox"
                                     checked={visibleColumns.includes(column)}
                                     on:change={() => toggleColumn(column)}
+                                    disabled={lockedColumns.includes(column)}
                                     class="mr-2"
                                 />
-                                {column.replace('_', ' ')}
+                                <span class="{lockedColumns.includes(column) ? 'opacity-50 cursor-not-allowed' : ''}">
+                                    {column.replace('_', ' ')}
+                                </span>
                             </label>
                         {/each}
                         <button on:click={() => isColumnSelectorOpen = false} class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
@@ -134,8 +247,10 @@
         <table class="min-w-full divide-y divide-blue-200">
             <thead class="bg-blue-500">
                 <tr>
-                    {#each visibleColumns as column}
-                        <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider whitespace-nowrap">{column.replace('_', ' ')}</th>
+                    {#each originalColumnOrder as column}
+                        {#if visibleColumns.includes(column)}
+                            <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider whitespace-nowrap">{column.replace('_', ' ')}</th>
+                        {/if}
                     {/each}
                 </tr>
             </thead>
@@ -146,41 +261,43 @@
                         on:click={() => handleRowClick(order)}
                         transition:fade
                     >
-                        {#each visibleColumns as column}
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                {#if column === 'date' || column === 'shipment_date'}
-                                    {order[column] ? new Date(order[column]).toLocaleDateString() : 'N/A'}
-                                {:else if column === 'total'}
-                                    {formatCurrency(order[column])}
-                                {:else if column === 'status' || column === 'order_status'}
-                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                        {order[column] === 'pending_approval' ? 'bg-red-100 text-red-800' : 
-                                        order[column] === 'open' ? 'bg-green-100 text-green-800' : 
-                                        order[column] === 'closed' ? 'bg-gray-100 text-gray-800' : 
-                                        'bg-yellow-100 text-yellow-800'}">
-                                        {order[column] === 'open' ? 'confirmed' : order[column]}
-                                    </span>
-                                {:else if column === 'invoiced_status' || column === 'payment_status'}
-                                    <div class="relative inline-block group">
-                                        {#if order[column] === 'partially_invoiced' || order[column] === 'partially_paid'}
-                                            <AlertCircle size={24} class="text-yellow-500" />
-                                        {:else if order[column] === 'invoiced' || order[column] === 'paid'}
-                                            <CheckCircle size={24} class="text-green-500" />
-                                        {:else}
-                                            <XCircle size={24} class="text-gray-500" />
-                                        {/if}
-                                        <div class="absolute z-10 w-auto p-2 m-2 min-w-max rounded-md shadow-md
-                                            text-white bg-gray-900 text-xs font-bold 
-                                            transition-opacity duration-300 
-                                            opacity-0 group-hover:opacity-100 bottom-full left-1/2 transform -translate-x-1/2">
-                                            {order[column]}
-                                            <svg class="absolute text-gray-900 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255" xml:space="preserve"><polygon class="fill-current" points="0,0 127.5,127.5 255,0"/></svg>
+                        {#each originalColumnOrder as column}
+                            {#if visibleColumns.includes(column)}
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    {#if column === 'date' || column === 'shipment_date'}
+                                        {order[column] ? formatDate(new Date(order[column])) : 'N/A'}
+                                    {:else if column === 'total'}
+                                        {formatCurrency(order[column])}
+                                    {:else if column === 'status' || column === 'order_status'}
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                            {order[column] === 'pending_approval' ? 'bg-red-100 text-red-800' : 
+                                            order[column] === 'open' ? 'bg-green-100 text-green-800' : 
+                                            order[column] === 'closed' ? 'bg-gray-100 text-gray-800' : 
+                                            'bg-yellow-100 text-yellow-800'}">
+                                            {order[column] === 'open' ? 'confirmed' : order[column]}
+                                        </span>
+                                    {:else if column === 'invoiced_status' || column === 'payment_status'}
+                                        <div class="relative inline-block group">
+                                            {#if order[column] === 'partially_invoiced' || order[column] === 'partially_paid'}
+                                                <AlertCircle size={24} class="text-yellow-500" />
+                                            {:else if order[column] === 'invoiced' || order[column] === 'paid'}
+                                                <CheckCircle size={24} class="text-green-500" />
+                                            {:else}
+                                                <XCircle size={24} class="text-gray-500" />
+                                            {/if}
+                                            <div class="absolute z-10 w-auto p-2 m-2 min-w-max rounded-md shadow-md
+                                                text-white bg-gray-900 text-xs font-bold 
+                                                transition-opacity duration-300 
+                                                opacity-0 group-hover:opacity-100 bottom-full left-1/2 transform -translate-x-1/2">
+                                                {order[column]}
+                                                <svg class="absolute text-gray-900 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255" xml:space="preserve"><polygon class="fill-current" points="0,0 127.5,127.5 255,0"/></svg>
+                                            </div>
                                         </div>
-                                    </div>
-                                {:else}
-                                    {order[column]}
-                                {/if}
-                            </td>
+                                    {:else}
+                                        {order[column]}
+                                    {/if}
+                                </td>
+                            {/if}
                         {/each}
                     </tr>
                 {/each}
@@ -196,7 +313,7 @@
                 on:click={() => changePage(currentPage - 1)}
             >
                 Previous
-            </button>
+            </button> 
             <button 
                 class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                 disabled={currentPage === totalPages} 
@@ -204,28 +321,29 @@
             >
                 Next
             </button>
-        </div>
-        <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
+        </div> 
+         <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between"> 
+             <div>
                 <p class="text-sm text-gray-700">
                     Showing <span class="font-medium">{(currentPage - 1) * 10 + 1}</span> to <span class="font-medium">{Math.min(currentPage * 10, totalCount)}</span> of <span class="font-medium">{totalCount}</span> results
                 </p>
-            </div>
-            <div>
-                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+            </div> 
+             <div> 
+                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination"> 
                     <button 
                         class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
                         disabled={currentPage === 1} 
                         on:click={() => changePage(currentPage - 1)}
                     >
                         <span class="sr-only">Previous</span>
-                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0
+                        20 20" fill="currentColor" aria-hidden="true">
                             <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
                         </svg>
-                    </button>
+                    </button> 
                     <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
                         {currentPage}
-                    </span>
+                    </span> 
                     <button 
                         class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
                         disabled={currentPage === totalPages} 
@@ -235,11 +353,11 @@
                         <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                             <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                         </svg>
-                    </button>
+                    </button> 
                 </nav>
-            </div>
+             </div> 
         </div>
-    </div>
+    </div> 
 
     {#if isLoading}
         <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
@@ -269,5 +387,9 @@
 }
 .divide-blue-200 > :not([hidden]) ~ :not([hidden]) {
     border-color: #bfdbfe;
+}
+input[type="checkbox"]:disabled + span {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 </style>

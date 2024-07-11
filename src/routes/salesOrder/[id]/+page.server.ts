@@ -10,16 +10,13 @@ async function getToken(fetch: typeof globalThis.fetch): Promise<string> {
 }
 
 export const load: PageServerLoad = async ({ params, fetch, locals }) => {
-
         // redirect user if not logged in
         if (!locals.user) {
             throw redirect(302, new URL('/login', 'http://localhost:5173').toString());
     }
-    
          if (!locals.user) {
             throw redirect(302, new URL('/login', 'https://vc-tech.vercel.app/').toString());
         }
-
     const token = await getToken(fetch);
     const salesOrderId = params.id;
 

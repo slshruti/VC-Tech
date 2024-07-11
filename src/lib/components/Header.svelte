@@ -9,12 +9,12 @@
 <header class="bg-gray-300 shadow-sm z-10">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex justify-between h-14">
-      <div class="flex items-center">
+       <div class="flex items-center">
         <div class="relative">
-          <input type="text" placeholder="Search" class="bg-gray-100 rounded-full py-1.5 px-4 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-300 text-sm">
-          <Search class="absolute left-3 top-2 h-4 w-4 text-gray-400" />
+          <!-- <input type="text" placeholder="Search" class="bg-gray-100 rounded-full py-1.5 px-4 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-300 text-sm">
+           <Search class="absolute left-3 top-2 h-4 w-4 text-gray-400" />  -->
         </div>
-      </div>
+      </div>  
       <div class="flex items-center">
         <button type="button" class="p-1.5 rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-300">
           <span class="sr-only">View notifications</span>

@@ -1,174 +1,210 @@
 <script lang="ts">
-    import '$lib/styles/app.css';
+    import { page } from '$app/stores';
     import type { PageData } from './$types';
-    import { onMount } from 'svelte';
 
     export let data: PageData;
-
-    console.log('Received data:', data);
-
-    let salesOrder = data.salesOrder;
-    console.log('Sales Order:', salesOrder);
-
-    let loading = true;
-    let error = null;
-
-    onMount(() => {
-        loading = false;
-    });
-
-    function formatDate(dateString: string) {
-        return new Date(dateString).toLocaleDateString('en-GB', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-        });
-    }
-
-    function formatCurrency(amount: number) {
-        return new Intl.NumberFormat('en-IN', {
-            style: 'currency',
-            currency: 'INR',
-            minimumFractionDigits: 2
-        }).format(amount);
-    }
-
-    function getStatusColor(status: string) {
-        switch (status.toLowerCase()) {
-            case 'open':
-                return 'bg-green-100 text-green-800';
-            case 'closed':
-                return 'bg-gray-100 text-gray-800';
-            case 'draft':
-                return 'bg-yellow-100 text-yellow-800';
-            case 'pending approval':
-                return 'bg-blue-100 text-blue-800';
-            case 'pending':
-                return 'bg-orange-100 text-orange-800';
-            default:
-                return 'bg-white text-blue-800';
-        }
-    }
+    
+    $: order = data.salesOrder;
 </script>
 
-<div class="min-h-screen bg-slate-100 py-12 px-4 sm:px-6 lg:px-8">
-    <h1 class="text-3xl font-bold text-center mb-8">Sales Order Page</h1>
+<div class="sales-order">
+    <div class="header">
+        <div class="back-arrow">←</div>
+        <h1>Sales Order</h1>
+        <div class="order-number">{order.salesorder_number}</div>
+        <div class="status-tags">
+            <span class="tag confirmed">confirmed</span>
+            <span class="tag ops-status">OPS STATUS</span>
+        </div>
+    </div>
 
-    {#if loading}
-        <p class="text-center">Loading...</p>
-    {:else if error}
-        <p class="text-center text-red-500">{error}</p>
-    {:else if salesOrder}
-        <div class="max-w-5xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden">
-            <div class="bg-[#3b82f6] p-6 flex justify-between items-center">
-                <div>
-                    <h1 class="text-3xl font-bold text-white">Sales Order</h1>
-                    <p class="text-white opacity-80">#{salesOrder.salesorder_number}</p>
+    {#if order}
+        <div class="order-details">
+            <div class="info-columns">
+                <div class="column">
+                    <h3>Customer Information</h3>
+                    <p><strong>Name:</strong> {order.customer_name}</p>
+                    <p><strong>Contact:</strong> {order.contact_person}</p>
+                    <p><strong>Phone:</strong> {order.phone}</p>
+                    <p><strong>GSTIN:</strong> {order.gstin || 'undefined'}</p>
                 </div>
-                <div class="flex space-x-4">
-                    <div class="{getStatusColor('open')} px-4 py-2 rounded-full font-semibold shadow-lg">
-                        CONFIRMED
-                    </div>
-                    <div class="{getStatusColor('pending')} px-4 py-2 rounded-full font-semibold shadow-lg">
-                        OPS STATUS
-                    </div>
+                <div class="column">
+                    <h3>Order Information</h3>
+                    <p><strong>Date:</strong> {new Date(order.date).toLocaleDateString()}</p>
+                    <p><strong>Reference:</strong> {order.reference_number}</p>
+                    <p><strong>Delivery Method:</strong> {order.delivery_method}</p>
+                    <p><strong>Salesperson:</strong> {order.salesperson_name}</p>
                 </div>
             </div>
-
-            <div class="p-6 space-y-8">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="space-y-4">
-                        <h2 class="text-xl font-semibold text-blue-900">Customer Information</h2>
-                        <div class="bg-slate-50 p-4 rounded-lg">
-                            <p class="text-slate-800"><span class="font-medium">Name:</span> {salesOrder.customer_name}</p>
-                            <p class="text-slate-800"><span class="font-medium">Contact:</span> {salesOrder.contact_person_details[0].first_name} {salesOrder.contact_person_details[0].last_name}</p>
-                            <p class="text-slate-800"><span class="font-medium">Phone:</span> {salesOrder.contact_person_details[0].mobile}</p>
-                            <p class="text-slate-800"><span class="font-medium">GSTIN:</span> {salesOrder.customer_gst_no}</p>
-                        </div>
-                    </div>
-                    <div class="space-y-4">
-                        <h2 class="text-xl font-semibold text-blue-900">Order Information</h2>
-                        <div class="bg-slate-50 p-4 rounded-lg">
-                            <p class="text-slate-800"><span class="font-medium">Date:</span> {formatDate(salesOrder.date)}</p>
-                            <p class="text-slate-800"><span class="font-medium">Reference:</span> {salesOrder.reference_number}</p>
-                            <p class="text-slate-800"><span class="font-medium">Delivery Method:</span> {salesOrder.delivery_method}</p>
-                            <p class="text-slate-800"><span class="font-medium">Salesperson:</span> {salesOrder.salesperson_name}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="space-y-4">
-                    <h2 class="text-xl font-semibold text-blue-900">Shipping Address</h2>
-                    <div class="bg-slate-50 p-4 rounded-lg">
-                        <p class="text-slate-800">
-                            {salesOrder.shipping_address.address}<br>
-                            {salesOrder.shipping_address.street2}<br>
-                            {salesOrder.shipping_address.city}, {salesOrder.shipping_address.state} {salesOrder.shipping_address.zip}<br>
-                            {salesOrder.shipping_address.country}
-                        </p>
-                    </div>
-                </div>
-
-                <div class="space-y-4">
-                    <h2 class="text-xl font-semibold text-blue-900">Line Items</h2>
-                    <div class="overflow-x-auto bg-slate-50 rounded-lg">
-                        <table class="min-w-full divide-y divide-slate-200">
-                            <thead class="bg-slate-100">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">Description</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">HSN/SAC</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">Qty</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">Rate</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-slate-200">
-                                {#each salesOrder.line_items as item}
-                                    <tr class="hover:bg-slate-50 transition duration-150">
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <p class="text-sm text-slate-800 font-medium">{item.name}</p>
-                                            <p class="text-xs text-slate-600 mt-1">{item.description}</p>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{item.hsn_or_sac}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{item.quantity} {item.unit}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{formatCurrency(item.rate)}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-medium">{formatCurrency(item.item_total)}</td>
-                                    </tr>
-                                {/each}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="space-y-4">
-                    <h2 class="text-xl font-semibold text-blue-900">Order Summary</h2>
-                    <div class="bg-slate-50 p-6 rounded-lg space-y-3">
-                        <div class="flex justify-between text-slate-800">
-                            <span>Sub Total:</span>
-                            <span class="font-medium">{formatCurrency(salesOrder.sub_total)}</span>
-                        </div>
-                        {#each salesOrder.taxes as tax}
-                            <div class="flex justify-between text-slate-800">
-                                <span>{tax.tax_name}:</span>
-                                <span class="font-medium">{tax.tax_amount_formatted}</span>
-                            </div>
-                        {/each}
-                        <div class="flex justify-between text-lg font-semibold text-blue-800 pt-3 border-t border-slate-300">
-                            <span>Total:</span>
-                            <span>{formatCurrency(salesOrder.total)}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="space-y-4">
-                    <h2 class="text-xl font-semibold text-blue-900">Additional Notes</h2>
-                    <div class="bg-slate-50 p-4 rounded-lg">
-                        <p class="text-slate-800 whitespace-pre-line">{salesOrder.notes}</p>
-                    </div>
-                </div>
+            
+            <div class="shipping-address">
+                <h3>Shipping Address</h3>
+                <p>{order.shipping_address}</p>
+            </div>
+            
+            <h3>Line Items</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>DESCRIPTION</th>
+                        <th>HSN/SAC</th>
+                        <th>QTY</th>
+                        <th>RATE</th>
+                        <th>AMOUNT</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {#each order.line_items as item}
+                        <tr>
+                            <td>{item.name}</td>
+                            <td>{item.hsn_or_sac}</td>
+                            <td>{item.quantity}</td>
+                            <td>{item.rate}</td>
+                            <td>{item.item_total}</td>
+                        </tr>
+                    {/each}
+                </tbody>
+            </table>
+            
+            <div class="order-summary">
+                <h3>Order Summary</h3>
+                <p><span>Sub Total:</span> <span>{order.sub_total}</span></p>
+                <p><span>IGST 18%:</span> <span>{order.igst}</span></p>
+                <p class="total"><span>Total:</span> <span>{order.total}</span></p>
+            </div>
+            
+            <div class="additional-notes">
+                <h3>Additional Notes</h3>
+                <p>SO Requested Date: {order.so_requested_date}</p>
+                <p>SO Date: {order.so_date}</p>
+                <p>SO Requested By: {order.so_requested_by}</p>
             </div>
         </div>
     {:else}
-        <p class="text-center">No sales order data available.</p>
+        <p>Loading order...</p>
     {/if}
 </div>
+
+<style>
+    .sales-order {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        background-color: #f0f0f0;
+    }
+    
+    .header {
+        background-color: #4285f4;
+        color: white;
+        padding: 10px 20px;
+        display: flex;
+        align-items: center;
+    }
+
+    .back-arrow {
+        font-size: 24px;
+        margin-right: 10px;
+    }
+
+    h1 {
+        margin: 0;
+        flex-grow: 1;
+    }
+
+    .order-number {
+        font-size: 0.9em;
+        margin-right: 20px;
+    }
+
+    .status-tags {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .tag {
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 0.8em;
+    }
+    
+    .confirmed {
+        background-color: #e8f5e9;
+        color: #4caf50;
+    }
+    
+    .ops-status {
+        background-color: #e3f2fd;
+        color: #2196f3;
+    }
+    
+    .order-details {
+        background-color: white;
+        padding: 20px;
+    }
+    
+    .info-columns {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+    }
+    
+    .column {
+        flex: 1;
+    }
+    
+    h3 {
+        color: #4285f4;
+        border-bottom: 1px solid #e0e0e0;
+        padding-bottom: 5px;
+        font-size: 1em;
+        margin-bottom: 10px;
+    }
+    
+    p {
+        margin: 5px 0;
+        font-size: 0.9em;
+    }
+
+    .shipping-address {
+        margin-bottom: 20px;
+    }
+    
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        font-size: 0.9em;
+    }
+    
+    th, td {
+        border: 1px solid #e0e0e0;
+        padding: 8px;
+        text-align: left;
+    }
+    
+    th {
+        background-color: #f5f5f5;
+    }
+    
+    .order-summary {
+        background-color: #f5f5f5;
+        padding: 10px;
+        border-radius: 5px;
+        margin-top: 20px;
+    }
+
+    .order-summary p {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .total {
+        font-weight: bold;
+        color: #4285f4;
+    }
+
+    .additional-notes {
+        margin-top: 20px;
+        font-size: 0.9em;
+    }
+</style>
